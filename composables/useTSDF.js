@@ -7,6 +7,8 @@ export function useTSDF(gridSize = 128, voxelSize = 0.05) {
     tsdfBuffer = initGPUBuffer(device, gridSize ** 3 * 8, "storage");
   }
 
+
+
   async function integrate(device, depthMap) {
     if (!tsdfBuffer) throw new Error("TSDF buffer not initialized");
 

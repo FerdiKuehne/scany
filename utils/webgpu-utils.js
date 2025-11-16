@@ -8,47 +8,42 @@ export function initGPUBuffer(device, size, usage) {
   });
 }
 
-export async function computeShader(device, shaderPath, bindings, x = 1, y = 1, z = 1) {
-  // 1️⃣ Load WGSL shader
-  const shaderCode = await fetch(shaderPath).then((r) => r.text());
-  const shaderModule = device.createShaderModule({ code: shaderCode });
+export function uploadDepthToGPU(device, depth) {
+  const buffer = device.createBuffer({
+    size: depth.data.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  });
+  device.queue.writeBuffer(buffer, 0, depth.data);
+  return buffer;
+}
 
-  // 2️⃣ Create compute pipeline with auto layout
+// webgpu-utils.js
+export async function computeShader(device, shaderUrl, bindings, x, y, z) {
+  const shaderCode = await fetch(shaderUrl).then(r => r.text());
+  const module = device.createShaderModule({ code: shaderCode });
+
   const pipeline = device.createComputePipeline({
     layout: "auto",
-    compute: { module: shaderModule, entryPoint: "main" },
-  });
-
-  // 3️⃣ Create bind group entries
-  const entries = Object.keys(bindings).map((name, i) => {
-    const resource = bindings[name];
-    if (resource instanceof GPUBuffer) {
-      return { binding: i, resource: { buffer: resource } };
-    } else if (resource instanceof GPUTexture) {
-      return { binding: i, resource: resource.createView() };
-    }
+    compute: { module, entryPoint: "main" }
   });
 
   const bindGroup = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
-    entries: [
-      { binding: 0, resource: { buffer: tsdfBuffer } },
-      { binding: 1, resource: { buffer: depthMapBuffer } },
-      { binding: 2, resource: { buffer: paramsBuffer } },
-    ],
+    entries: Object.entries(bindings).map(([name, buffer], i) => ({
+      binding: i,
+      resource: { buffer }
+    }))
   });
-  
 
-  // 4️⃣ Dispatch compute
   const commandEncoder = device.createCommandEncoder();
-  const passEncoder = commandEncoder.beginComputePass();
-  passEncoder.setPipeline(pipeline);
-  passEncoder.setBindGroup(0, bindGroup);
-  passEncoder.dispatchWorkgroups(x, y, z);
-  passEncoder.end();
-
+  const pass = commandEncoder.beginComputePass();
+  pass.setPipeline(pipeline);
+  pass.setBindGroup(0, bindGroup);
+  pass.dispatchWorkgroups(x, y, z);
+  pass.end();
   device.queue.submit([commandEncoder.finish()]);
 }
+
 
 // utils/webgpu-utils.js
 export function createVertexBuffer(device, data) {
