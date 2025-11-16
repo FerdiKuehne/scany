@@ -7,7 +7,8 @@ export function useDepthEngine() {
     if (!depthEstimator) {
       depthEstimator = await pipeline(
         "depth-estimation",
-        "onnx-community/depth-anything-v2-small"
+        "onnx-community/depth-anything-v2-small",
+        { device: "webgpu" }
       );
       console.log("[DepthEngine] Loaded SMALL model");
     }
