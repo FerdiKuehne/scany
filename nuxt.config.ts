@@ -4,7 +4,6 @@ export default defineNuxtConfig({
 
   ssr: false,
   css: ['@/assets/global.css'],
-  plugins: ['@/plugins/onnxruntime.client.js','@/plugins/wasm-trace.client.js'],
   runtimeConfig: {
     public: {
       modelBasePath: '/models/' // public path accessible in the browser
