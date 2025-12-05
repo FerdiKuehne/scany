@@ -10,7 +10,6 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.7.6",
     "nuxt": "^4.2.1",
     "onnxruntime-web": "^1.23.2",
     "three": "^0.181.1",

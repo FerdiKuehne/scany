@@ -3,37 +3,101 @@
 </template>
 
 <script setup>
-import { ref, defineExpose } from "vue";
+import { ref, onMounted, defineExpose } from "vue";
 
 const canvas = ref(null);
+let ctx = null;
 
-function update(depthArray, width, height) {
-  if (!canvas.value) return;
+// Display size (can match camera feed)
+const displayWidth = 240;
+const displayHeight = 240;
 
-  canvas.value.width = width;
-  canvas.value.height = height;
+// Maximum expected depth in scene (meters)
+const depthScale = 0.5;
 
-  const ctx = canvas.value.getContext("2d");
-  const img = ctx.createImageData(width, height);
-
-  let min = Infinity, max = -Infinity;
-  for (let v of depthArray) {
-    if (v < min) min = v;
-    if (v > max) max = v;
+onMounted(() => {
+  if (canvas.value) {
+    canvas.value.width = displayWidth;
+    canvas.value.height = displayHeight;
+    ctx = canvas.value.getContext("2d");
   }
+});
 
-  for (let i = 0; i < depthArray.length; i++) {
-    const n = (depthArray[i] - min) / (max - min);
-    const g = n * 255;
+/**
+ * Draw a depth map on the canvas
+ * @param {Float32Array} depthArray - 1D depth values
+ * @param {number} width - width of depth map
+ * @param {number} height - height of depth map
+ */
+async function update(depthArray, width, height) {
+  try {
+    if (!ctx || !depthArray || !width || !height) return;
 
-    img.data[i * 4 + 0] = g;
-    img.data[i * 4 + 1] = g;
-    img.data[i * 4 + 2] = g;
-    img.data[i * 4 + 3] = 255;
+    width = Number(width);
+    height = Number(height);
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+      console.warn("Invalid depth map dimensions", width, height);
+      return;
+    }
+
+    // Create offscreen canvas at native depth resolution
+    const offCanvas = document.createElement("canvas");
+    offCanvas.width = width;
+    offCanvas.height = height;
+    const offCtx = offCanvas.getContext("2d");
+    const imgData = offCtx.createImageData(width, height);
+
+
+    // Fill image data using fixed depth scale
+    for (let i = 0; i < depthArray.length; i++) {
+      let val = depthArray[i];
+      const normalized = val / depthScale;
+      const shade = Math.floor(normalized * 255 ) * 0.1; // closer = brighter
+
+      const idx = i * 4;
+      imgData.data[idx + 0] = shade;
+      imgData.data[idx + 1] = shade;
+      imgData.data[idx + 2] = shade;
+      imgData.data[idx + 3] = 255;
+    }
+
+    offCtx.putImageData(imgData, 0, 0);
+
+    // Maintain aspect ratio
+    const canvasAspect = canvas.value.width / canvas.value.height;
+    const depthAspect = width / height;
+
+    let drawWidth = canvas.value.width;
+    let drawHeight = canvas.value.height;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (depthAspect > canvasAspect) {
+      drawHeight = drawWidth / depthAspect;
+      offsetY = (canvas.value.height - drawHeight) / 2;
+    } else {
+      drawWidth = drawHeight * depthAspect;
+      offsetX = (canvas.value.width - drawWidth) / 2;
+    }
+
+    // Draw scaled depth map
+    ctx.clearRect(0, 0, canvas.value.width, canvas.value.height);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(offCanvas, offsetX, offsetY, drawWidth, drawHeight);
+  } catch (e) {
+    console.error("DepthCanvas update error:", e);
+    return;
   }
-
-  ctx.putImageData(img, 0, 0);
 }
 
 defineExpose({ update });
 </script>
+
+<style scoped>
+canvas {
+  border: 1px solid #333;
+  image-rendering: pixelated; /* keeps pixels crisp */
+  width: 256px;
+  height: 256px;
+}
+</style>

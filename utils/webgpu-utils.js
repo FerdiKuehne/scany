@@ -1,24 +1,45 @@
-export function initGPUBuffer(device, size, usage) {
-  return device.createBuffer({
-    size,
-    usage:
-      usage === "storage"
-        ? GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-        : GPUBufferUsage.UNIFORM,
-  });
+export function initGPUBuffer(device, sizeOrData, type = "storage") {
+  if (sizeOrData instanceof Float32Array || sizeOrData instanceof Uint32Array) {
+    const buffer = device.createBuffer({
+      size: sizeOrData.byteLength,
+      usage: type === "storage"
+        ? GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        : GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      mappedAtCreation: true,
+    });
+    const array =
+      sizeOrData instanceof Float32Array
+        ? new Float32Array(buffer.getMappedRange())
+        : new Uint32Array(buffer.getMappedRange());
+    array.set(sizeOrData);
+    buffer.unmap();
+    return buffer;
+  } else {
+    return device.createBuffer({
+      size: sizeOrData,
+      usage: type === "storage"
+        ? GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        : GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+  }
 }
+
+
+
 
 export function uploadDepthToGPU(device, depth) {
   const buffer = device.createBuffer({
-    size: depth.data.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    size: depth.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
-  device.queue.writeBuffer(buffer, 0, depth.data);
+  device.queue.writeBuffer(buffer, 0, depth);
   return buffer;
 }
 
+
 // webgpu-utils.js
 export async function computeShader(device, shaderUrl, bindings, x, y, z) {
+
   const shaderCode = await fetch(shaderUrl).then(r => r.text());
   const module = device.createShaderModule({ code: shaderCode });
 
@@ -27,12 +48,10 @@ export async function computeShader(device, shaderUrl, bindings, x, y, z) {
     compute: { module, entryPoint: "main" }
   });
 
+  // Use bindings directly — no Object.entries mapping
   const bindGroup = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
-    entries: Object.entries(bindings).map(([name, buffer], i) => ({
-      binding: i,
-      resource: { buffer }
-    }))
+    entries: bindings
   });
 
   const commandEncoder = device.createCommandEncoder();
