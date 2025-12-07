@@ -13,7 +13,7 @@ const displayWidth = 240;
 const displayHeight = 240;
 
 // Maximum expected depth in scene (meters)
-const depthScale = 0.5;
+const depthScale = 3;
 
 onMounted(() => {
   if (canvas.value) {
@@ -52,7 +52,7 @@ async function update(depthArray, width, height) {
     for (let i = 0; i < depthArray.length; i++) {
       let val = depthArray[i];
       const normalized = val / depthScale;
-      const shade = Math.floor(normalized * 255 ) * 0.1; // closer = brighter
+      const shade = Math.floor(normalized * 255 ); // closer = brighter
 
       const idx = i * 4;
       imgData.data[idx + 0] = shade;

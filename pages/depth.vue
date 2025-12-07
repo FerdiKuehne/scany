@@ -86,7 +86,7 @@ async function startCamera() {
      // await tsdf.integrate(device, depth.data, depth.width, depth.height);
       // Show depth map
       depthCanvas.value.update(depth.data, depth.width, depth.height);
-
+      console.log(depth.data);
       // Display middle TSDF slice
      /* const sliceZ = Math.floor(tsdf.gridSize / 2);
       const tsdfSlice = await readTSDFSliceToCPU(
