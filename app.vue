@@ -38,4 +38,10 @@ canvas {
   height: auto;
   background-color: #111827;
 }
+
+canvas {
+  width: 256px !important;
+  height: 256px !important;
+  float: left;
+}
 </style>
